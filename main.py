@@ -2,6 +2,7 @@ import tensorflow as tf
 import keras
 from sklearn.model_selection import train_test_split
 import numpy as np
+import os
 import cv2
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -13,30 +14,39 @@ df = pd.read_csv('train_data.csv')
 train_images = []
 for i in df[df.columns[0]]:
     im = cv2.imread('train/'+i,cv2.IMREAD_GRAYSCALE)
+    im = cv2.resize(im,(125,125))
     train_images.append(im)
-images = []
-for pixel_sequence in train_images:
-    im = cv2.resize(pixel_sequence.astype('uint8'), (32,32))
-    images.append(im.astype('float32'))
-images = np.asarray(images)
+
+images = np.asarray(train_images)
 images = np.expand_dims(images, -1)
 train_labels = df[df.columns[2]]
-x_train,x_test,y_train,y_test = train_test_split(images,train_labels,test_size = 0.30)
+x_train,x_test,y_train,y_test = train_test_split(images,train_labels,test_size = 0.25,random_state=38)
 
-input_s = (32,32,1)
+input_s = (125,125,1)
 input = Input(input_s)
-x = Conv2D(128,(5,5),strides= (1,1),padding = 'same',activation='relu')(input)
+x = Conv2D(32,(5,5),strides= (1,1),padding = 'same',activation='relu')(input)
+x = Activation('relu')(x)
+x = MaxPooling2D(pool_size=(2,2),strides=(2,2),padding='same')(x)
+x = BatchNormalization()(x)
+x = Conv2D(64,(5,5),strides= (1,1),padding = 'same',activation='relu')(input)
+x = Activation('relu')(x)
+x = MaxPooling2D(pool_size=(2,2),strides=(2,2),padding='same')(x)
+x = BatchNormalization()(x)
+x = Conv2D(128,(5,5),strides=(1,1),padding='same',activation='relu')(x)
+x = Activation('relu')(x)
+x = MaxPooling2D(pool_size=(2,2),strides=(2,2),padding='same')(x)
+x = BatchNormalization()(x)
+x = Conv2D(256,(5,5),strides=(1,1),padding='same',activation='relu')(x)
 x = Activation('relu')(x)
 x = MaxPooling2D(pool_size=(2,2),strides=(2,2),padding='same')(x)
 x = BatchNormalization()(x)
 x = Dropout(0.5)(x)
 x = Flatten()(x)
-x = Dense(96)(x)
+x = Dense(1024,activation='relu')(x)
+x = Dense(512,activation='relu')(x)
+x = Dense(256,activation='relu')(x)
+x = Dense(10)(x)
 x = Activation('relu')(x)
-x = Dropout(0.25)(x)
-x = Dense(54)(x)
-x = PReLU(alpha_initializer='zeros',alpha_constraint=None,alpha_regularizer=None)(x)
-x = Dropout(0.25)(x)
 x = Dense(1)(x)
 output = Activation('sigmoid')(x)
 
@@ -44,7 +54,8 @@ model = Model(input,output)
 model.compile(loss='binary_crossentropy', optimizer='adadelta', metrics=['accuracy'])
 y_pred = model.predict(x_test,10)
 print(model.summary())
-history = model.fit(x_train, y_train,validation_split = 0.30, epochs=50, batch_size=100)
+history = model.fit(x_train, y_train,validation_split = 0.25, epochs=20, batch_size=100)
+
 his_dic = history.history
 print(his_dic.keys())
 score, accu = model.evaluate(x_test,y_test)
