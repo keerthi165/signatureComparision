@@ -3,3 +3,4 @@
 - Main code in the branch krth
 - main.py is the code for training
 - dataset used is from kaggle
+- Used Keras for the implementation
